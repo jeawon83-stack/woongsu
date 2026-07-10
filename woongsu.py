@@ -5,7 +5,6 @@ import pandas as pd
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
-    # 모든 셀 데이터를 문자열 취급하고 줄바꿈 기호를 안전하게 사전 박멸합니다.
     df = pd.read_csv(SHEET_URL, dtype=str).fillna("")
     for col in df.columns:
         df[col] = df[col].astype(str).str.replace(r'\r+|\n+', ' ', regex=True).str.strip()
@@ -40,6 +39,15 @@ st.markdown("""
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04) !important;
         height: 195px !important;
         box-sizing: border-box !important;
+    }
+    
+    /* 💡 [핵심 추가] 어떠한 사진이 들어와도 00번 이미지 규격(가로 85px, 세로 115px)으로 고정 및 강제 크롭 */
+    div[data-testid="stImage"] img {
+        width: 85px !important;
+        height: 115px !important;
+        object-fit: cover !important; /* 비율 유지하며 사각형 틀에 맞춤, 넘치는 부분 자동 컷 */
+        border-radius: 8px !important;
+        border: 1px solid #E5E7EB !important;
     }
     
     /* 컴포넌트 간 불필요한 여백 최소화 */
@@ -78,9 +86,7 @@ for index, row in display_df.iterrows():
         continue
     valid_members.append(row)
 
-# ─── 4. [반응형 레이아웃] 1줄 ~ 3줄 자동 가변 처리 ───
-# PC에선 3단 분할로 작동하며, 스마트폰에선 가로폭 감지로 우측 열들이 아래로 흘러내려 
-# 모바일에선 누락 없는 1줄, 넓은 화면에선 3줄 배치가 자연스럽게 연동됩니다.
+# ─── 4. 반응형 다단 레이아웃 매핑 ───
 grid_cols = st.columns(3)
 
 for col_idx, row in enumerate(valid_members):
@@ -97,7 +103,7 @@ for col_idx, row in enumerate(valid_members):
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 사진 확장자 추적 매핑 및 주소 할당
+    # 사진 확장자 정확하게 추적 매핑
     available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
     if num_A in available_photos:
         if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
@@ -107,28 +113,27 @@ for col_idx, row in enumerate(valid_members):
     else:
         member_photo_url = DEFAULT_IMAGE_URL
 
-    # 반응형 열 계산
+    # 가변 반응형 열 배정
     target_col = grid_cols[col_idx % 3]
     
     with target_col:
-        # 순수 파이썬 컨테이너 카드 개시 (HTML 충돌 100% 없음)
         with st.container(border=True):
             # 대레이아웃 분할: 왼쪽 사진(35) : 오른쪽 정보(65) 강제 가로 고정
             card_left, card_right = st.columns([35, 65])
             
             with card_left:
-                # 💡 [오류 수정 완료] 버전을 타는 fallback 옵션을 완벽히 제거했습니다.
+                # 💡 안전한 내장 컴포넌트에 상단 CSS가 입혀져 00번과 100% 동일한 크기로 고정 출력됩니다.
                 st.image(member_photo_url, use_container_width=True)
                 
             with card_right:
-                # 이름 및 학번 기입
+                # 이름 및 학번
                 st.markdown(f"**<span style='font-size:16px;'>{name}</span>** <span style='color:#6B7280; font-size:12px;'>({hakbun})</span>", unsafe_allow_html=True)
                 
-                # 소속과 직급을 한 줄로 가로 정렬 표현
+                # 소속과 직급 한 줄 가로 정렬
                 st.markdown(f"<span style='font-size:11px; color:#4B5563;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
                 st.write("") 
                 
-                # 휴대폰과 회사 번호를 한 줄에 좌우로 나란히 배치
+                # 휴대폰과 회사 번호 버튼 한 줄 배치
                 tel_col1, tel_col2 = st.columns(2)
                 with tel_col1:
                     if phone and phone != "nan" and phone != "":
@@ -141,9 +146,8 @@ for col_idx, row in enumerate(valid_members):
                     else:
                         st.write("")
                 
-                # 그 밑에 이메일 주소를 단독 가로 배치
+                # 이메일 주소 하단 배치
                 if email and email != "nan" and email != "":
                     st.link_button(f"✉️ {email}", f"mailto:{email}", use_container_width=True)
         
-        # 하단 여백 형성
         st.write("")
