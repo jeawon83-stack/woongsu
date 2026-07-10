@@ -1,13 +1,15 @@
 import streamlit as st
 import pandas as pd
+import html
 
 # ─── 1. 구글 시트 데이터 로드 ───
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
     df = pd.read_csv(SHEET_URL, dtype=str).fillna("")
+    # 데이터 깨짐 방지용 정형화 전처리
     for col in df.columns:
-        df[col] = df[col].astype(str).str.replace(r'\r+|\n+', ' ', regex=True).str.strip()
+        df[col] = df[col].astype(str).str.replace(r'\r+|\n+|\t+', ' ', regex=True).str.strip()
     
     idx_A = df.columns[0] # 번호 (A)
     idx_B = df.columns[1] # 학번 (B)
@@ -22,56 +24,146 @@ except Exception as e:
     st.error("구글 시트를 불러오는 중 오류가 발생했습니다. URL을 확인해주세요.")
     st.stop()
 
-# ─── 2. 웹 화면 및 스마트폰 맞춤형 CSS 설정 ───
+# ─── 2. 스마트폰 전용 명함첩 테두리 격자 CSS 설정 ───
 st.set_page_config(page_title="웅수회 회원수첩", layout="centered")
 
 st.markdown("""
     <style>
-    .main .block-container { max-width: 500px; padding-top: 15px; padding-left: 10px; padding-right: 10px; }
-    h1 { text-align: center; color: #1E3A8A; font-size: 25px !important; font-weight: bold; margin-bottom: 5px; }
+    .main .block-container { max-width: 480px; padding-top: 15px; padding-left: 8px; padding-right: 8px; }
+    h1 { text-align: center; color: #1E3A8A; font-size: 24px !important; font-weight: bold; margin-bottom: 5px; }
     
-    /* 상단 수정 링크 버튼 스타일링 */
     .edit-btn-container { text-align: center; margin-bottom: 20px; }
     
-    /* 모든 회원의 카드 프레임 크기를 200px로 완전히 통일 */
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        border: 1px solid #E5E7EB !important;
-        border-radius: 14px !important;
-        padding: 12px !important;
-        background-color: #ffffff !important;
-        box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.05) !important;
-        height: 200px !important;
-        box-sizing: border-box !important;
-        margin-bottom: 5px !important;
+    /* 💡 전체 회원첩 컨테이너 (바깥 파란색 실선 테두리) */
+    .notebook-container {
+        border: 2px solid #2B579A;
+        border-radius: 4px;
+        background-color: #ffffff;
+        width: 100%;
+        box-sizing: border-box;
     }
     
-    /* 모든 사진을 00번 규격(가로 90px, 세로 125px)으로 오차 없이 고정 및 비율 크롭 */
-    div[data-testid="stImage"] img {
-        width: 90px !important;
-        height: 125px !important;
-        object-fit: cover !important;
-        border-radius: 8px !important;
-        border: 1px solid #E5E7EB !important;
+    /* 💡 개별 회원 명함 블록 (하단 테두리 실선) */
+    .member-row {
+        display: flex;
+        border-bottom: 2px solid #2B579A;
+        width: 100%;
+        height: 140px; /* 명함첩 규격 고정 */
+        box-sizing: border-box;
+    }
+    .member-row:last-child {
+        border-bottom: none;
     }
     
-    /* 글자 위치와 버튼 높이가 모든 칸에서 완전히 동일하도록 강제 패딩 조절 */
-    div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.3; }
-    div[data-testid="stHorizontalBlock"] { gap: 8px !important; align-items: flex-start !important; }
+    /* 💡 좌측 사진 영역 (우측 실선 테두리) */
+    .photo-area {
+        flex: 0 0 100px;
+        border-right: 1px solid #2B579A;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #fafafa;
+        overflow: hidden;
+    }
+    .photo-area img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
     
-    /* 원터치 링크 버튼 모바일 가독성 최적화 */
-    div[data-testid="stLinkButton"] a {
-        font-size: 11.5px !important;
-        font-weight: bold !important;
-        padding: 5px 6px !important;
-        border-radius: 6px !important;
+    /* 💡 우측 정보 격자 영역 */
+    .info-grid {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        font-size: 12px;
+        color: #111827;
+    }
+    
+    /* 각 행 구조 정의 */
+    .row-line {
+        display: flex;
+        border-bottom: 1px solid #2B579A;
+        align-items: center;
+        box-sizing: border-box;
+    }
+    
+    /* 이름 행 (단독 1행 배치) */
+    .name-line {
+        height: 35px;
+        padding-left: 10px;
+        background-color: #ffffff;
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .name-line .hakbun {
+        font-size: 13px;
+        color: #6B7280;
+        font-weight: normal;
+        margin-left: 5px;
+    }
+    
+    /* 소속 / 직위 2분할 행 */
+    .sub-info-line {
+        height: 32px;
+    }
+    
+    /* 전화번호 격자 행 */
+    .tel-line {
+        height: 38px;
+    }
+    
+    /* 이메일 행 (맨 아래) */
+    .email-line {
+        height: 35px;
+        border-bottom: none;
+    }
+    
+    /* 격자 내부 라벨(소속, 직위 등) 스타일 */
+    .grid-label {
+        flex: 0 0 45px;
+        background-color: #f3f4f6;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border-right: 1px solid #2B579A;
+        font-size: 11px;
+    }
+    
+    /* 격자 내부 실제 데이터값 스타일 */
+    .grid-value {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        padding-left: 8px;
+        padding-right: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .border-right-blue {
+        border-right: 1px solid #2B579A;
+    }
+    
+    /* 원터치 전화/이메일 클릭 링크 스타일 */
+    .click-link {
+        color: #0056b3 !important;
+        text-decoration: none !important;
+        font-weight: 500;
+        width: 100%;
+        display: block;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 메인 타이틀
 st.title("📱 웅수회 모바일 회원수첩")
 
-# 💡 [핵심 추가] 타이틀 밑에 구글 시트 데이터 수정하러 가기 버튼 배치
+# 상단 수정 링크 버튼
 st.markdown('<div class="edit-btn-container">', unsafe_allow_html=True)
 st.link_button("✏️ 회원정보 수정하기", "https://docs.google.com/spreadsheets/d/1_0vVmGeJw10j5jYJnoj7nmJExiS5xO3oT9UjScc811o/edit?gid=0#gid=0", use_container_width=True)
 st.markdown('</div>', unsafe_allow_html=True)
@@ -79,13 +171,12 @@ st.markdown('</div>', unsafe_allow_html=True)
 # 이름 검색창
 search_query = st.text_input("🔍 이름으로 찾기", "", placeholder="회원 이름을 입력하세요...").strip()
 
-# 검색어 필터링
 if search_query:
     display_df = df[df[idx_D].str.contains(search_query, na=False)]
 else:
     display_df = df
 
-# ─── 3. 깃허브 사진 경로 및 회원 정제 ───
+# ─── 3. 깃허브 사진 경로 및 회원 추출 ───
 GITHUB_PHOTO_BASE_URL = "https://raw.githubusercontent.com/jeawon83-stack/woongsu/main/photos/"
 DEFAULT_IMAGE_URL = f"{GITHUB_PHOTO_BASE_URL}00.jpg"
 
@@ -96,22 +187,26 @@ for index, row in display_df.iterrows():
         continue
     valid_members.append(row)
 
-# ─── 4. 회원 목록 순차 출력 (무조건 1열 고정) ───
+# ─── 4. 명함첩 렌더링 개시 ───
+# 전체 리스트를 하나의 큰 파란색 수첩 컨테이너 구조로 감싸 출력합니다.
+notebook_html = '<div class="notebook-container">'
+
 for row in valid_members:
     try:
         num_A = str(int(float(row[idx_A])))
     except:
         num_A = "00"
 
-    name = str(row[idx_D]).strip()
-    hakbun = str(row[idx_B]).strip()
-    sosok = str(row[idx_E]).strip()
-    jikpup = str(row[idx_F]).strip()
-    phone = str(row[idx_G]).strip()
-    company_phone = str(row[idx_H]).strip()
-    email = str(row[idx_I]).strip()
+    # 특수문자가 HTML 문법을 깨부수지 못하게 안전 이스케이프 가공
+    name = html.escape(str(row[idx_D]).strip())
+    hakbun = html.escape(str(row[idx_B]).strip())
+    sosok = html.escape(str(row[idx_E]).strip())
+    jikpup = html.escape(str(row[idx_F]).strip())
+    phone = html.escape(str(row[idx_G]).strip())
+    company_phone = html.escape(str(row[idx_H]).strip())
+    email = html.escape(str(row[idx_I]).strip())
 
-    # 사진 확장자 체크 예외처리
+    # 사진 매칭 확장자 분기 처리
     available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
     if num_A in available_photos:
         if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
@@ -121,31 +216,52 @@ for row in valid_members:
     else:
         member_photo_url = DEFAULT_IMAGE_URL
 
-    with st.container(border=True):
-        card_left, card_right = st.columns([33, 67])
+    # 원터치 전화걸기 및 이메일 링크 구조 처리
+    phone_html = f'<a href="tel:{phone}" class="click-link">{phone}</a>' if phone and phone != "nan" else "-"
+    company_html = f'<a href="tel:{company_phone}" class="click-link">{company_phone}</a>' if company_phone and company_phone != "nan" else "-"
+    email_html = f'<a href="mailto:{email}" class="click-link">{email}</a>' if email and email != "nan" else "-"
+
+    # 오른쪽 인쇄 예시 그림과 동일한 격자 테이블 형태 구현
+    notebook_html += f"""
+    <div class="member-row">
+        <!-- 좌측 사진 구역 -->
+        <div class="photo-area">
+            <img src="{member_photo_url}" onerror="this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
+        </div>
         
-        with card_left:
-            st.image(member_photo_url, use_container_width=True)
+        <!-- 우측 4단 격자 정보 구역 -->
+        <div class="info-grid">
+            <!-- 1행: 이름 및 학번 (소속 위에 노출 조건 충족) -->
+            <div class="row-line name-line">
+                {name} <span class="hakbun">({hakbun})</span>
+            </div>
             
-        with card_right:
-            st.markdown(f"**<span style='font-size:18px; color:#111827;'>{name}</span>** <span style='color:#6B7280; font-size:13px;'>({hakbun})</span>", unsafe_allow_html=True)
-            st.markdown(f"<span style='font-size:14px; color:#4B5563; font-weight:500;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
-            st.write("") 
+            <!-- 2행: 소속 및 직위 격자 분할 -->
+            <div class="row-line sub-info-line">
+                <div class="grid-label">소속</div>
+                <div class="grid-value border-right-blue">{sosok}</div>
+                <div class="grid-label">직위</div>
+                <div class="grid-value">{jikpup}</div>
+            </div>
             
-            # 연락처 버튼 분할 배치
-            tel_col1, tel_col2 = st.columns(2)
-            with tel_col1:
-                if phone and phone != "nan" and phone != "":
-                    st.link_button(f"📞 휴대폰", f"tel:{phone}", use_container_width=True)
-                else:
-                    st.write("") 
-            with tel_col2:
-                if company_phone and company_phone != "nan" and company_phone != "":
-                    st.link_button(f"☎️ 회사", f"tel:{company_phone}", use_container_width=True)
-                else:
-                    st.write("")
+            <!-- 3행: TEL(회사) 및 CP(휴대폰) 격자 분할 -->
+            <div class="row-line tel-line">
+                <div class="grid-label">TEL</div>
+                <div class="grid-value border-right-blue">{company_html}</div>
+                <div class="grid-label">CP</div>
+                <div class="grid-value">{phone_html}</div>
+            </div>
             
-            if email and email != "nan" and email != "":
-                st.link_button(f"✉️ 이메일 보내기", f"mailto:{email}", use_container_width=True)
-    
-    st.write("")
+            <!-- 4행: 이메일 단독 행 -->
+            <div class="row-line email-line">
+                <div class="grid-label">e-mail</div>
+                <div class="grid-value">{email_html}</div>
+            </div>
+        </div>
+    </div>
+    """
+
+notebook_html += '</div>'
+
+# 최종 가공된 수첩 인쇄
+st.markdown(notebook_html, unsafe_allow_html=True)
