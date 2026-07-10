@@ -47,15 +47,10 @@ for index, row in display_df.iterrows():
     if pd.isna(row[idx_A]):
         continue
         
-    # A열 번호 기반 사진 매칭 (예: 1 -> 1.jpg)
+    # A열 번호 기반 사진 주소 생성 (예: 1 -> 1.jpg)
     try:
         num_A = str(int(row[idx_A]))
         member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpg"
-        
-        # 깃허브에 사진이 실제로 존재하는지 확인 (없으면 00.jpg 사용)
-        response = requests.head(member_photo_url)
-        if response.status_code != 200:
-            member_photo_url = DEFAULT_IMAGE_URL
     except:
         member_photo_url = DEFAULT_IMAGE_URL
 
@@ -63,7 +58,13 @@ for index, row in display_df.iterrows():
     col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.image(member_photo_url, use_container_width=True)
+        # html 태그를 직접 사용하여 사진이 없을 때(에러 발생 시) 자동으로 00.jpg를 보여주도록 설정
+        html_img = f"""
+        <img src="{member_photo_url}" 
+             onerror="this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" 
+             style="width:100%; max-width:120px; border-radius:8px; display:block; margin:auto;" />
+        """
+        st.markdown(html_img, unsafe_allow_html=True)
         
     with col2:
         # 이름(D)과 학번(B) 표기
@@ -74,11 +75,9 @@ for index, row in display_df.iterrows():
         
         # 전화번호 설정 (G열: 전화번호1 / H열: 전화번호(회사))
         phone_html = ""
-        # G열(전화번호1)이 있으면 우선적으로 스마트폰 전화걸기 링크 생성
         if pd.notna(row[idx_G]) and str(row[idx_G]).strip() != "":
             phone_html += f'<a href="tel:{row[idx_G]}" style="text-decoration:none; color:#007BFF; font-weight:bold; display:inline-block; margin-bottom:5px;">📞 휴대폰: {row[idx_G]}</a><br>'
         
-        # H열(전화번호(회사))이 있으면 회사전화 링크 생성
         if pd.notna(row[idx_H]) and str(row[idx_H]).strip() != "":
             phone_html += f'<a href="tel:{row[idx_H]}" style="text-decoration:none; color:#555555; font-weight:bold; display:inline-block; margin-bottom:5px;">☎️ 회사: {row[idx_H]}</a><br>'
         
@@ -87,7 +86,6 @@ for index, row in display_df.iterrows():
         if pd.notna(row[idx_I]) and str(row[idx_I]).strip() != "":
             email_html += f'<a href="mailto:{row[idx_I]}" style="text-decoration:none; color:#28A745; font-weight:bold;">✉️ 이메일: {row[idx_I]}</a>'
             
-        # HTML 링크 화면에 렌더링
         if phone_html:
             st.markdown(phone_html, unsafe_allow_html=True)
         if email_html:
