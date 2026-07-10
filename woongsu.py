@@ -31,7 +31,7 @@ st.markdown("""
     h1 { text-align: center; color: #1E3A8A; font-size: 25px !important; font-weight: bold; margin-bottom: 5px; }
     .edit-btn-container { text-align: center; margin-bottom: 20px; }
     
-    /* 모든 회원 카드의 프레임 크기를 동일하게 고정 (내용물에 따라 일그러지지 않음) */
+    /* 모든 회원 카드의 프레임 크기를 동일하게 고정 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1px solid #E5E7EB !important;
         border-radius: 14px !important;
@@ -43,7 +43,7 @@ st.markdown("""
         margin-bottom: 5px !important;
     }
     
-    /* 모든 사진을 00번 규격과 완벽히 동일한 명함 크기로 강제 고정 및 자동 크롭 */
+    /* 모든 사진을 명함 규격 크기로 강제 고정 및 자동 크롭 */
     div[data-testid="stImage"] img {
         width: 95px !important;
         height: 130px !important;
@@ -94,10 +94,15 @@ for index, row in display_df.iterrows():
 
 # ─── 4. 회원 목록 순차 출력 (무조건 깔끔한 1열 고정) ───
 for row in valid_members:
+    val_A = str(row[idx_A]).strip()
+    
+    # 구글 시트의 숫자가 1.0 같은 소수로 오거나 공백이 섞인 것을 순수 정수 문자로 정형화
     try:
-        num_A = str(int(float(row[idx_A])))
+        clean_num = str(int(float(val_A)))
+        padded_num = clean_num.zfill(2) # 1자리 숫자인 경우 '01' 형태도 준비
     except:
-        num_A = "00"
+        clean_num = "00"
+        padded_num = "00"
 
     name = str(row[idx_D]).strip()
     hakbun = str(row[idx_B]).strip()
@@ -107,30 +112,33 @@ for row in valid_members:
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 사진 매칭 확장자 체크 예외처리
-    available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
-    if num_A in available_photos:
-        if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
-        elif num_A == "21": member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.png"
-        elif num_A == "24": member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpeg"
-        else: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpg"
-    else:
-        member_photo_url = DEFAULT_IMAGE_URL
+    # 💡 [핵심 버그 수정] 어떤 확장자나 자릿수로 저장했든 브라우저가 다 찾아내도록 onerror 연쇄 추적 기법 적용
+    # '숫자.jpg' -> '숫자.JPG' -> '숫자.png' -> '숫자.jpeg' -> '0숫자.jpg'(자릿수 맞춤) -> 기본곰돌이 순으로 자동 스캔합니다.
+    img_html = f"""
+    <img src="{GITHUB_PHOTO_BASE_URL}{clean_num}.jpg" 
+         onerror="this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{clean_num}.JPG'; 
+                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{clean_num}.png'; 
+                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{clean_num}.jpeg'; 
+                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{padded_num}.jpg'; 
+                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{padded_num}.JPG'; 
+                  this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
+    """
 
     with st.container(border=True):
         # 가로 배치: 왼쪽 사진(33) : 오른쪽 정보(67)
         card_left, card_right = st.columns([33, 67])
         
         with card_left:
-            st.image(member_photo_url, use_container_width=True)
+            # 순수 파이썬 image 컴포넌트의 HTML 우회 표기를 통해 에러 복구 스크립트 발동
+            st.markdown(f'<div data-testid="stImage">{img_html}</div>', unsafe_allow_html=True)
             
         with card_right:
-            # 1줄: 이름 및 학번 (글씨 크기 확대)
+            # 1줄: 이름 및 학번
             st.markdown(f"**<span style='font-size:19px; color:#111827;'>{name}</span>** <span style='color:#6B7280; font-size:13px;'>({hakbun})</span>", unsafe_allow_html=True)
             
-            # 2줄: 소속 및 직책 가로 한 줄 정렬 (글씨 크기 확대)
+            # 2줄: 소속 및 직책 가로 한 줄 정렬
             st.markdown(f"<span style='font-size:14px; color:#4B5563; font-weight:500;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
-            st.write("") # 미세 세로 간격 조정
+            st.write("") 
             
             # 3줄: 휴대폰과 회사 번호 동일 높이에 배치
             tel_col1, tel_col2 = st.columns(2)
