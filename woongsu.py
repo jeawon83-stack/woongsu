@@ -23,15 +23,17 @@ except Exception as e:
     st.stop()
 
 # ─── 2. 웹 화면 및 스마트폰 맞춤형 CSS 설정 ───
-st.set_page_config(page_title="웅수회 회원수첩", layout="centered") # 화면을 모바일에 최적화된 중앙 정렬로 변경
+st.set_page_config(page_title="웅수회 회원수첩", layout="centered")
 
 st.markdown("""
     <style>
-    /* 스마트폰에서 가득 차 보이도록 전체 최대 너비를 제한 */
     .main .block-container { max-width: 500px; padding-top: 15px; padding-left: 10px; padding-right: 10px; }
-    h1 { text-align: center; color: #1E3A8A; font-size: 25px !important; font-weight: bold; margin-bottom: 20px; }
+    h1 { text-align: center; color: #1E3A8A; font-size: 25px !important; font-weight: bold; margin-bottom: 5px; }
     
-    /* 💡 모든 회원의 카드 프레임 크기를 200px로 완전히 통일 */
+    /* 상단 수정 링크 버튼 스타일링 */
+    .edit-btn-container { text-align: center; margin-bottom: 20px; }
+    
+    /* 모든 회원의 카드 프레임 크기를 200px로 완전히 통일 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1px solid #E5E7EB !important;
         border-radius: 14px !important;
@@ -43,7 +45,7 @@ st.markdown("""
         margin-bottom: 5px !important;
     }
     
-    /* 💡 모든 사진을 00번 규격(가로 90px, 세로 125px)으로 오차 없이 고정 및 비율 크롭 */
+    /* 모든 사진을 00번 규격(가로 90px, 세로 125px)으로 오차 없이 고정 및 비율 크롭 */
     div[data-testid="stImage"] img {
         width: 90px !important;
         height: 125px !important;
@@ -52,7 +54,7 @@ st.markdown("""
         border: 1px solid #E5E7EB !important;
     }
     
-    /* 💡 글자 위치와 버튼 높이가 모든 칸에서 완전히 동일하도록 강제 패딩 조절 */
+    /* 글자 위치와 버튼 높이가 모든 칸에서 완전히 동일하도록 강제 패딩 조절 */
     div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.3; }
     div[data-testid="stHorizontalBlock"] { gap: 8px !important; align-items: flex-start !important; }
     
@@ -66,9 +68,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# 메인 타이틀
 st.title("📱 웅수회 모바일 회원수첩")
 
-# 이름 검색창 (스마트폰 크기 꽉 채움)
+# 💡 [핵심 추가] 타이틀 밑에 구글 시트 데이터 수정하러 가기 버튼 배치
+st.markdown('<div class="edit-btn-container">', unsafe_allow_html=True)
+st.link_button("✏️ 회원정보 수정하기", "https://docs.google.com/spreadsheets/d/1_0vVmGeJw10j5jYJnoj7nmJExiS5xO3oT9UjScc811o/edit?gid=0#gid=0", use_container_width=True)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# 이름 검색창
 search_query = st.text_input("🔍 이름으로 찾기", "", placeholder="회원 이름을 입력하세요...").strip()
 
 # 검색어 필터링
@@ -89,7 +97,6 @@ for index, row in display_df.iterrows():
     valid_members.append(row)
 
 # ─── 4. 회원 목록 순차 출력 (무조건 1열 고정) ───
-# 복잡한 가로 배열 연동을 완전히 제거하여 스마트폰에서 밀림/누락 에러를 완벽 방어합니다.
 for row in valid_members:
     try:
         num_A = str(int(float(row[idx_A])))
@@ -104,7 +111,7 @@ for row in valid_members:
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 사진 매칭 확장자 체크 예외처리
+    # 사진 확장자 체크 예외처리
     available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
     if num_A in available_photos:
         if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
@@ -114,23 +121,18 @@ for row in valid_members:
     else:
         member_photo_url = DEFAULT_IMAGE_URL
 
-    # 테두리가 봉인된 독립 카드 박스 개시
     with st.container(border=True):
-        # 비율 분할: 왼쪽 사진 구역(33) : 오른쪽 정보 구역(67)
         card_left, card_right = st.columns([33, 67])
         
         with card_left:
             st.image(member_photo_url, use_container_width=True)
             
         with card_right:
-            # 💡 이름 글씨 크기 키움 (18px)
             st.markdown(f"**<span style='font-size:18px; color:#111827;'>{name}</span>** <span style='color:#6B7280; font-size:13px;'>({hakbun})</span>", unsafe_allow_html=True)
-            
-            # 💡 소속 및 직책 글씨 크기 키움 (14px) 및 한 줄 좌우 정렬
             st.markdown(f"<span style='font-size:14px; color:#4B5563; font-weight:500;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
-            st.write("") # 버튼 가이드 간격 확보
+            st.write("") 
             
-            # 휴대폰과 회사 번호 버튼 한 줄 배치 (정밀 높이 수평 유지)
+            # 연락처 버튼 분할 배치
             tel_col1, tel_col2 = st.columns(2)
             with tel_col1:
                 if phone and phone != "nan" and phone != "":
@@ -143,9 +145,7 @@ for row in valid_members:
                 else:
                     st.write("")
             
-            # 이메일 주소 버튼 하단 배치
             if email and email != "nan" and email != "":
                 st.link_button(f"✉️ 이메일 보내기", f"mailto:{email}", use_container_width=True)
     
-    # 카드간 하단 물리적 마진 형성
     st.write("")
