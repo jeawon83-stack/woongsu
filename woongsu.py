@@ -20,7 +20,7 @@ except Exception as e:
     st.error("구글 시트를 불러오는 중 오류가 발생했습니다. URL을 확인해주세요.")
     st.stop()
 
-# ─── 2. 웹 화면 및 스타일 설정 ───
+# ─── 2. 웹 화면 및 정밀 레이아웃 CSS 설정 ───
 st.set_page_config(page_title="웅수회 회원수첩", layout="wide")
 
 st.markdown("""
@@ -28,15 +28,25 @@ st.markdown("""
     .main .block-container { max-width: 1200px; padding-top: 20px; }
     h1 { text-align: center; color: #1E3A8A; font-size: 26px !important; font-weight: bold; margin-bottom: 25px; }
     
-    /* 카드 외곽 프레임 정돈 */
+    /* 💡 [조건 1] 모든 회원 카드의 높이와 크기를 동일하게 고정 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1px solid #E5E7EB !important;
         border-radius: 12px !important;
         padding: 12px !important;
         background-color: #ffffff !important;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04) !important;
+        height: 195px !important; /* 모든 칸의 총 세로 길이를 완벽히 통일 */
     }
-    div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; }
+    
+    /* 캡션 및 여백 미세 조정 */
+    div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.3; }
+    div[data-testid="stHorizontalBlock"] { gap: 8px !important; }
+    
+    /* 버튼 폰트 크기 최적화 */
+    div[data-testid="stLinkButton"] a {
+        font-size: 11px !important;
+        padding: 4px 6px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -57,8 +67,7 @@ else:
 GITHUB_PHOTO_BASE_URL = "https://raw.githubusercontent.com/jeawon83-stack/woongsu/main/photos/"
 DEFAULT_IMAGE_URL = f"{GITHUB_PHOTO_BASE_URL}00.jpg"
 
-# ─── 4. 회원 목록 출력 (파이썬 제어 다단 배치 기법) ───
-# 실제 유효한 회원 리스트만 먼저 정제합니다.
+# ─── 4. 회원 목록 정제 및 출력 ───
 valid_members = []
 for index, row in display_df.iterrows():
     val_A = str(row[idx_A]).strip()
@@ -66,7 +75,7 @@ for index, row in display_df.iterrows():
         continue
     valid_members.append(row)
 
-# PC/태블릿 크기를 위해 한 줄에 3개씩 분할 선언 (모바일 브라우저 진입 시 3개의 열이 위에서 아래로 순서대로 정렬되므로 누락 차단!)
+# 화면 분할 그리드 준비
 grid_cols = st.columns(3)
 
 for col_idx, row in enumerate(valid_members):
@@ -83,47 +92,52 @@ for col_idx, row in enumerate(valid_members):
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 💡 [사진 복구 핵심] 확장자가 꼬였거나 사진이 없는 경우를 파이썬 내에서 사전 감지 후 안전한 대체 주소 주입
-    # 깃허브 저장소에 등록해두신 특정 번호들만 매칭하고 나머지는 안전하게 00.jpg로 강제 매핑합니다.
-    # (현재 깃허브 photos 폴더에 업로드 완료된 사진 번호들 목록입니다)
+    # 사진 매칭 확장자 체크 예외처리
     available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
-    
     if num_A in available_photos:
-        # 깃허브 화면 확인 결과 108번과 11번은 대문자 JPG, 21번은 png, 24번은 jpeg 형식이므로 이에 맞춤 매핑
-        if num_A in ["108", "11"]:
-            member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
-        elif num_A == "21":
-            member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.png"
-        elif num_A == "24":
-            member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpeg"
-        else:
-            member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpg"
+        if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
+        elif num_A == "21": member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.png"
+        elif num_A == "24": member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpeg"
+        else: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpg"
     else:
-        # 폴더에 사진이 없는 번호는 무조건 00.jpg 주소 적용
         member_photo_url = DEFAULT_IMAGE_URL
 
-    # 지정된 열(0, 1, 2)에 순서대로 차곡차곡 카드를 분배
+    # 지정된 다단 열에 카드 순차 배치
     target_col = grid_cols[col_idx % 3]
     
     with target_col:
         with st.container(border=True):
-            # 카드 내부 분할: 왼쪽(사진 3.5) / 오른쪽(정보 6.5) 강제 가로 정렬
+            # 대레이아웃: 왼쪽 사진(35) : 오른쪽 정보(65)
             card_left, card_right = st.columns([35, 65])
             
             with card_left:
                 st.image(member_photo_url, use_container_width=True)
                 
             with card_right:
+                # 이름 및 학번 기입
                 st.markdown(f"**<span style='font-size:16px;'>{name}</span>** <span style='color:#6B7280; font-size:12px;'>({hakbun})</span>", unsafe_allow_html=True)
-                st.markdown(f"<span style='font-size:12px; color:#4B5563; line-height:1.3;'><b>소속</b>: {sosok}<br><b>직급</b>: {jikpup}</span>", unsafe_allow_html=True)
                 
-                # 원터치 다이렉트 버튼 링크 구성
-                if phone and phone != "nan":
-                    st.link_button(f"📞 휴대폰: {phone}", f"tel:{phone}", use_container_width=True)
-                if company_phone and company_phone != "nan":
-                    st.link_button(f"☎️ 회사: {company_phone}", f"tel:{company_phone}", use_container_width=True)
+                # 💡 [조건 2] 소속과 직급을 동일 높이에 한 줄로 좌우 배치
+                st.markdown(f"<span style='font-size:11px; color:#4B5563;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
+                st.write("") # 미세 여백 형성
+                
+                # 💡 [조건 3] 휴대폰과 회사 번호를 동일 높이에 좌우로 배치
+                # 두 번호가 모두 있을 때와 하나만 있을 때의 레이아웃 균형을 맞춥니다.
+                tel_col1, tel_col2 = st.columns(2)
+                with tel_col1:
+                    if phone and phone != "nan":
+                        st.link_button(f"📞 {phone}", f"tel:{phone}", use_container_width=True)
+                    else:
+                        st.write("") # 빈 공간 유지하여 칸 크기 고정 보조
+                with tel_col2:
+                    if company_phone and company_phone != "nan":
+                        st.link_button(f"☎️ {company_phone}", f"tel:{company_phone}", use_container_width=True)
+                    else:
+                        st.write("")
+                
+                # 💡 [조건 4] 그 밑에 이메일 주소 단독 배치
                 if email and email != "nan":
-                    st.link_button(f"✉️ 이메일: {email}", f"mailto:{email}", use_container_width=True)
+                    st.link_button(f"✉️ {email}", f"mailto:{email}", use_container_width=True)
         
-        # 카드 간 하단 여백 형성
+        # 하단 카드간 간격 정돈
         st.write("")
