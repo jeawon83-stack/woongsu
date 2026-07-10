@@ -28,21 +28,34 @@ st.markdown("""
     .main .block-container { max-width: 1200px; padding-top: 20px; }
     h1 { text-align: center; color: #1E3A8A; font-size: 26px !important; font-weight: bold; margin-bottom: 25px; }
     
-    /* 💡 [조건 1] 모든 회원 카드의 높이와 크기를 동일하게 고정 */
+    /* 모든 회원 카드의 세로 전체 길이를 균일하게 고정 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1px solid #E5E7EB !important;
         border-radius: 12px !important;
         padding: 12px !important;
         background-color: #ffffff !important;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04) !important;
-        height: 195px !important; /* 모든 칸의 총 세로 길이를 완벽히 통일 */
+        height: 195px !important;
     }
     
-    /* 캡션 및 여백 미세 조정 */
+    /* 💡 [핵심 구현] 회원마다 사진 크기가 달라도 00번 규격(가로 85px, 세로 115px)으로 고정 및 자동 크롭 */
+    .fixed-photo-container {
+        width: 85px !important;
+        height: 115px !important;
+        margin: auto;
+    }
+    .fixed-photo-container img {
+        width: 85px !important;
+        height: 115px !important;
+        object-fit: cover !important; /* 비율을 유지하면서 프레임에 맞춰 꽉 채우고 넘치는 부분은 자름 */
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+    }
+    
     div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.3; }
     div[data-testid="stHorizontalBlock"] { gap: 8px !important; }
     
-    /* 버튼 폰트 크기 최적화 */
+    /* 버튼 텍스트 크기 조정 */
     div[data-testid="stLinkButton"] a {
         font-size: 11px !important;
         padding: 4px 6px !important;
@@ -107,36 +120,42 @@ for col_idx, row in enumerate(valid_members):
     
     with target_col:
         with st.container(border=True):
-            # 대레이아웃: 왼쪽 사진(35) : 오른쪽 정보(65)
+            # 대레이아웃: 왼쪽 사진 공간 고정 / 오른쪽 정보 공간 고정
             card_left, card_right = st.columns([35, 65])
             
             with card_left:
-                st.image(member_photo_url, use_container_width=True)
+                # 💡 사진의 원래 크기와 무관하게 00번 곰돌이와 똑같은 가로세로 규격을 강제 주입하는 태그 감싸기
+                img_html = f"""
+                <div class="fixed-photo-container">
+                    <img src="{member_photo_url}" 
+                         onerror="this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
+                </div>
+                """
+                st.markdown(img_html, unsafe_allow_html=True)
                 
             with card_right:
                 # 이름 및 학번 기입
                 st.markdown(f"**<span style='font-size:16px;'>{name}</span>** <span style='color:#6B7280; font-size:12px;'>({hakbun})</span>", unsafe_allow_html=True)
                 
-                # 💡 [조건 2] 소속과 직급을 동일 높이에 한 줄로 좌우 배치
+                # 소속과 직급을 한 줄로 좌우 배치
                 st.markdown(f"<span style='font-size:11px; color:#4B5563;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
-                st.write("") # 미세 여백 형성
+                st.write("") 
                 
-                # 💡 [조건 3] 휴대폰과 회사 번호를 동일 높이에 좌우로 배치
-                # 두 번호가 모두 있을 때와 하나만 있을 때의 레이아웃 균형을 맞춥니다.
+                # 휴대폰과 회사 번호를 동일 높이에 좌우로 배치
                 tel_col1, tel_col2 = st.columns(2)
                 with tel_col1:
-                    if phone and phone != "nan":
+                    if phone and phone != "nan" and phone != "":
                         st.link_button(f"📞 {phone}", f"tel:{phone}", use_container_width=True)
                     else:
-                        st.write("") # 빈 공간 유지하여 칸 크기 고정 보조
+                        st.write("") 
                 with tel_col2:
-                    if company_phone and company_phone != "nan":
+                    if company_phone and company_phone != "nan" and company_phone != "":
                         st.link_button(f"☎️ {company_phone}", f"tel:{company_phone}", use_container_width=True)
                     else:
                         st.write("")
                 
-                # 💡 [조건 4] 그 밑에 이메일 주소 단독 배치
-                if email and email != "nan":
+                # 그 밑에 이메일 주소 단독 배치
+                if email and email != "nan" and email != "":
                     st.link_button(f"✉️ {email}", f"mailto:{email}", use_container_width=True)
         
         # 하단 카드간 간격 정돈
