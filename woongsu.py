@@ -2,11 +2,10 @@ import streamlit as st
 import pandas as pd
 
 # ─── 1. 구글 시트 데이터 로드 ───
-# ⚠️ 본인의 구글 시트 웹 게시(CSV) 주소를 여기에 넣어주세요!
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
-    df = pd.read_csv(SHEET_URL)
+    df = pd.read_csv(SHEET_URL, dtype=str).fillna("")
     
     idx_A = df.columns[0] # 번호 (A)
     idx_B = df.columns[1] # 학번 (B)
@@ -21,81 +20,37 @@ except Exception as e:
     st.error("구글 시트를 불러오는 중 오류가 발생했습니다. URL을 확인해주세요.")
     st.stop()
 
-# ─── 2. 웹 화면 및 반응형 CSS 스타일 설정 ───
+# ─── 2. 웹 화면 설정 ───
 st.set_page_config(page_title="웅수회 회원수첩", layout="wide")
 
 st.markdown("""
     <style>
-    .main .block-container { max-width: 1200px; padding-top: 20px; }
-    .title-area { text-align: center; margin-bottom: 25px; }
-    .title-text { font-size: 26px; font-weight: bold; color: #1E3A8A; }
+    .main .block-container { max-width: 1000px; padding-top: 20px; }
+    h1 { text-align: center; color: #1E3A8A; font-size: 26px !important; font-weight: bold; margin-bottom: 25px; }
     
-    /* 반응형 그리드 컨테이너 */
-    .member-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 16px;
-        width: 100%;
+    /* 카드 디자인 테두리 효과 설정 */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border: 1px solid #E5E7EB !important;
+        border-radius: 12px !important;
+        padding: 10px !important;
+        background-color: #ffffff !important;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04) !important;
+        margin-bottom: 10px !important;
     }
-    
-    /* 개별 회원 카드 스타일 */
-    .member-card {
-        display: flex;
-        align-items: center;
-        background-color: #ffffff;
-        border: 1px solid #E5E7EB;
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
-        height: 150px;
-    }
-    .photo-box {
-        flex: 0 0 85px;
-        margin-right: 12px;
-    }
-    .photo-box img {
-        width: 85px;
-        height: 115px;
-        object-fit: cover;
-        border-radius: 8px;
-        border: 1px solid #E5E7EB;
-    }
-    .info-box {
-        flex: 1;
-        min-width: 0;
-    }
-    .info-name { font-size: 17px; font-weight: bold; color: #111827; margin-bottom: 2px; }
-    .info-sub { font-size: 12px; color: #4B5563; margin-bottom: 6px; line-height: 1.4; }
-    
-    /* 버튼 스타일 */
-    .btn-link {
-        display: inline-flex;
-        align-items: center;
-        text-decoration: none !important;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 8px;
-        border-radius: 6px;
-        margin-right: 4px;
-        margin-bottom: 4px;
-    }
-    .btn-phone { background-color: #E0F2FE; color: #0369A1 !important; }
-    .btn-company { background-color: #F3F4F6; color: #4B5563 !important; }
-    .btn-email { background-color: #DCFCE7; color: #15803D !important; }
+    div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; }
     </style>
     """, unsafe_allow_html=True)
 
-# 상단 타이틀
-st.markdown('<div class="title-area"><span class="title-text">📱 웅수회 모바일 회원수첩</span></div>', unsafe_allow_html=True)
+st.title("📱 웅수회 모바일 회원수첩")
 
 # 이름 검색창
-left_space, search_col, right_space = st.columns([1, 2, 1])
+left_space, search_col, right_space = st.columns([1, 4, 1])
 with search_col:
-    search_query = st.text_input("🔍 이름으로 찾기", "", placeholder="회원 이름을 입력하세요...")
+    search_query = st.text_input("🔍 이름으로 찾기", "", placeholder="회원 이름을 입력하세요...").strip()
 
 # 검색어 필터링
 if search_query:
-    display_df = df[df[idx_D].astype(str).str.contains(search_query, na=False)]
+    display_df = df[df[idx_D].str.contains(search_query, na=False)]
 else:
     display_df = df
 
@@ -103,57 +58,52 @@ else:
 GITHUB_PHOTO_BASE_URL = "https://raw.githubusercontent.com/jeawon83-stack/woongsu/main/photos/"
 DEFAULT_IMAGE_URL = f"{GITHUB_PHOTO_BASE_URL}00.jpg"
 
-# ─── 4. 회원 목록 생성 및 출력 ───
-cards_html = '<div class="member-grid">'
-
+# ─── 4. 회원 목록 출력 (100% 안전한 파이썬 레이아웃) ───
 for index, row in display_df.iterrows():
-    if pd.isna(row[idx_A]):
+    val_A = str(row[idx_A]).strip()
+    if not val_A or val_A == "nan" or val_A == "":
         continue
         
     try:
-        # 소수점 제거 후 문자열로 안전하게 변환
-        num_A = str(int(float(row[idx_A])))
+        num_A = str(int(float(val_A)))
     except:
-        continue
+        num_A = "00"
 
-    # 전화번호 및 이메일 문자열 처리 (공백 및 nan 제거)
-    phone = str(row[idx_G]).strip() if pd.notna(row[idx_G]) else ""
-    company_phone = str(row[idx_H]).strip() if pd.notna(row[idx_H]) else ""
-    email = str(row[idx_I]).strip() if pd.notna(row[idx_I]) else ""
+    name = str(row[idx_D]).strip()
+    hakbun = str(row[idx_B]).strip()
+    sosok = str(row[idx_E]).strip()
+    jikpup = str(row[idx_F]).strip()
+    phone = str(row[idx_G]).strip()
+    company_phone = str(row[idx_H]).strip()
+    email = str(row[idx_I]).strip()
 
-    # 버튼 생성
-    buttons_html = ""
-    if phone and phone != "nan" and phone != "":
-        buttons_html += f'<a href="tel:{phone}" class="btn-link btn-phone">휴대폰</a>'
-    if company_phone and company_phone != "nan" and company_phone != "":
-        buttons_html += f'<a href="tel:{company_phone}" class="btn-link btn-company">회사</a>'
-    if email and email != "nan" and email != "":
-        buttons_html += f'<a href="mailto:{email}" class="btn-link btn-email">이메일</a>'
-
-    # 카드 구조 누적
-    cards_html += f"""
-    <div class="member-card">
-        <div class="photo-box">
+    # 개별 컨테이너 카드 생성
+    with st.container(border=True):
+        # 스마트폰 최적화: 무조건 왼쪽(사진 3.5), 오른쪽(정보 6.5) 분할
+        card_left, card_right = st.columns([35, 65])
+        
+        with card_left:
+            # 💡 [해결 조치] 버전을 타는 fallback 대신 HTML 이미지 기법을 활용하여 사진 자동 대체
+            img_html = f"""
             <img src="{GITHUB_PHOTO_BASE_URL}{num_A}.jpg" 
                  onerror="this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{num_A}.JPG'; 
                           this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{num_A}.png'; 
                           this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{num_A}.jpeg'; 
-                          this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
-        </div>
-        <div class="info-box">
-            <div class="info-name">{row[idx_D]} <span style="font-size:13px; color:#6B7280; font-weight:normal;">({row[idx_B]})</span></div>
-            <div class="info-sub">
-                <b>소속</b> : {row[idx_E]}<br>
-                <b>직급</b> : {row[idx_F]}
-            </div>
-            <div style="margin-top: 2px;">
-                {buttons_html}
-            </div>
-        </div>
-    </div>
-    """
-
-cards_html += '</div>'
-
-# ⚠️ [핵심 수정] 반복문이 완전히 끝난 후 단 한 번만 HTML을 렌더링하도록 변경합니다.
-st.markdown(cards_html, unsafe_allow_html=True)
+                          this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" 
+                 style="width:100%; height:120px; object-fit:cover; border-radius:8px; border:1px solid #E5E7EB;" />
+            """
+            st.markdown(img_html, unsafe_allow_html=True)
+            
+        with card_right:
+            st.markdown(f"**<span style='font-size:16px;'>{name}</span>** <span style='color:#6B7280; font-size:12px;'>({hakbun})</span>", unsafe_allow_html=True)
+            st.markdown(f"<span style='font-size:12px; color:#4B5563; line-height:1.3;'><b>소속</b>: {sosok}<br><b>직급</b>: {jikpup}</span>", unsafe_allow_html=True)
+            
+            # 실제 연락처 다이렉트 버튼 배치
+            if phone and phone != "nan":
+                st.link_button(f"📞 휴대폰: {phone}", f"tel:{phone}", use_container_width=True)
+                
+            if company_phone and company_phone != "nan":
+                st.link_button(f"☎️ 회사: {company_phone}", f"tel:{company_phone}", use_container_width=True)
+                
+            if email and email != "nan":
+                st.link_button(f"✉️ 이메일: {email}", f"mailto:{email}", use_container_width=True)
