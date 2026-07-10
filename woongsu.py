@@ -8,7 +8,6 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rD
 try:
     df = pd.read_csv(SHEET_URL)
     
-    # 구글 시트 열 인덱스 매핑 (A=0, B=1, C=2, D=3...)
     idx_A = df.columns[0] # 번호 (A)
     idx_B = df.columns[1] # 학번 (B)
     idx_D = df.columns[3] # 이름 (D)
@@ -23,19 +22,15 @@ except Exception as e:
     st.stop()
 
 # ─── 2. 웹 화면 및 반응형 CSS 스타일 설정 ───
-# 넓은 화면에서도 시원하게 보이도록 레이아웃을 'wide'로 설정합니다.
 st.set_page_config(page_title="웅수회 회원수첩", layout="wide")
 
-# 반응형 그리드 레이아웃 스타일 정의
 st.markdown("""
     <style>
-    /* 전체 콘텐츠 중앙 정렬 및 최대 너비 제한 (너무 퍼지는 것 방지) */
     .main .block-container { max-width: 1200px; padding-top: 20px; }
     .title-area { text-align: center; margin-bottom: 25px; }
     .title-text { font-size: 26px; font-weight: bold; color: #1E3A8A; }
     
-    /* 핵심: 반응형 그리드 컨테이너 */
-    /* 화면 너비에 따라 카드가 최소 320px을 유지하며 한 줄에 1개~3개로 자동 조절됩니다. */
+    /* 반응형 그리드 컨테이너 */
     .member-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -43,7 +38,7 @@ st.markdown("""
         width: 100%;
     }
     
-    /* 개별 회원 카드 스타일 (무조건 좌측 사진 / 우측 정보 고정) */
+    /* 개별 회원 카드 스타일 */
     .member-card {
         display: flex;
         align-items: center;
@@ -52,10 +47,10 @@ st.markdown("""
         border-radius: 12px;
         padding: 12px;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
-        height: 150px; /* 카드 높이를 통일하여 정렬을 깔끔하게 유지 */
+        height: 150px;
     }
     .photo-box {
-        flex: 0 0 85px; /* 사진 공간 너비 고정 */
+        flex: 0 0 85px;
         margin-right: 12px;
     }
     .photo-box img {
@@ -67,12 +62,12 @@ st.markdown("""
     }
     .info-box {
         flex: 1;
-        min-width: 0; /* 텍스트 넘침 방지 */
+        min-width: 0;
     }
     .info-name { font-size: 17px; font-weight: bold; color: #111827; margin-bottom: 2px; }
     .info-sub { font-size: 12px; color: #4B5563; margin-bottom: 6px; line-height: 1.4; }
     
-    /* 바로 연결 버튼 스타일 */
+    /* 버튼 스타일 */
     .btn-link {
         display: inline-flex;
         align-items: center;
@@ -93,12 +88,12 @@ st.markdown("""
 # 상단 타이틀
 st.markdown('<div class="title-area"><span class="title-text">📱 웅수회 모바일 회원수첩</span></div>', unsafe_allow_html=True)
 
-# 이름 검색창 (넓은 화면을 고려하여 중앙에 적당한 크기로 배치하기 위해 컬럼 분할)
+# 이름 검색창
 left_space, search_col, right_space = st.columns([1, 2, 1])
 with search_col:
     search_query = st.text_input("🔍 이름으로 찾기", "", placeholder="회원 이름을 입력하세요...")
 
-# 검색어 필터링 리스트
+# 검색어 필터링
 if search_query:
     display_df = df[df[idx_D].astype(str).str.contains(search_query, na=False)]
 else:
@@ -108,8 +103,7 @@ else:
 GITHUB_PHOTO_BASE_URL = "https://raw.githubusercontent.com/jeawon83-stack/woongsu/main/photos/"
 DEFAULT_IMAGE_URL = f"{GITHUB_PHOTO_BASE_URL}00.jpg"
 
-# ─── 4. 회원 목록 출력 (반응형 그리드 적용) ───
-# 그리드 시작 태그
+# ─── 4. 회원 목록 생성 및 출력 ───
 cards_html = '<div class="member-grid">'
 
 for index, row in display_df.iterrows():
@@ -117,25 +111,26 @@ for index, row in display_df.iterrows():
         continue
         
     try:
-        num_A = str(int(row[idx_A]))
+        # 소수점 제거 후 문자열로 안전하게 변환
+        num_A = str(int(float(row[idx_A])))
     except:
         continue
 
-    # 전화번호 및 이메일 데이터 정리
+    # 전화번호 및 이메일 문자열 처리 (공백 및 nan 제거)
     phone = str(row[idx_G]).strip() if pd.notna(row[idx_G]) else ""
     company_phone = str(row[idx_H]).strip() if pd.notna(row[idx_H]) else ""
     email = str(row[idx_I]).strip() if pd.notna(row[idx_I]) else ""
 
-    # 버튼 HTML 동적 생성
+    # 버튼 생성
     buttons_html = ""
-    if phone and phone != "nan":
+    if phone and phone != "nan" and phone != "":
         buttons_html += f'<a href="tel:{phone}" class="btn-link btn-phone">휴대폰</a>'
-    if company_phone and company_phone != "nan":
+    if company_phone and company_phone != "nan" and company_phone != "":
         buttons_html += f'<a href="tel:{company_phone}" class="btn-link btn-company">회사</a>'
-    if email and email != "nan":
+    if email and email != "nan" and email != "":
         buttons_html += f'<a href="mailto:{email}" class="btn-link btn-email">이메일</a>'
 
-    # 개별 회원 카드를 그리드 내부에 하나씩 축적
+    # 카드 구조 누적
     cards_html += f"""
     <div class="member-card">
         <div class="photo-box">
@@ -158,6 +153,7 @@ for index, row in display_df.iterrows():
     </div>
     """
 
-# 그리드 닫기 태그 및 렌더링
 cards_html += '</div>'
+
+# ⚠️ [핵심 수정] 반복문이 완전히 끝난 후 단 한 번만 HTML을 렌더링하도록 변경합니다.
 st.markdown(cards_html, unsafe_allow_html=True)
