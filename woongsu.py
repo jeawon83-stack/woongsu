@@ -20,7 +20,8 @@ except Exception as e:
     st.error("구글 시트를 불러오는 중 오류가 발생했습니다. URL을 확인해주세요.")
     st.stop()
 
-# ─── 2. 웹 화면 및 글로벌 CSS 스타일 설정 ───
+# ─── 2. 웹 화면 및 반응형 CSS 스타일 설정 ───
+# 전체 화면을 하나로 묶고 모바일과 PC 모두 수용하는 순수 CSS Grid 시스템을 적용합니다.
 st.set_page_config(page_title="웅수회 회원수첩", layout="wide")
 
 st.markdown("""
@@ -28,21 +29,68 @@ st.markdown("""
     .main .block-container { max-width: 1200px; padding-top: 20px; }
     h1 { text-align: center; color: #1E3A8A; font-size: 26px !important; font-weight: bold; margin-bottom: 25px; }
     
-    /* 카드 외곽 테두리 디자인 */
-    .css-card {
+    /* 💡 [누락 방지 핵심] 컴퓨터/태블릿에서는 다단(2~3줄), 스마트폰에서는 1줄로 예외 없이 전체 행을 무조건 출력 */
+    .member-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 16px;
+        width: 100%;
+    }
+    
+    /* 카드 디자인: 무조건 왼쪽(사진), 오른쪽(정보) 구조 강제 고정 */
+    .member-card {
+        display: flex !important;
+        flex-direction: row !important; /* 가로 정렬 고정 */
+        align-items: center;
+        background-color: #ffffff;
         border: 1px solid #E5E7EB;
         border-radius: 12px;
         padding: 12px;
-        background-color: #ffffff;
         box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
-        margin-bottom: 12px;
+        height: 155px;
+        box-sizing: border-box;
     }
+    .photo-box {
+        flex: 0 0 85px !important; /* 사진 크기 고정 */
+        margin-right: 14px;
+    }
+    .photo-box img {
+        width: 85px;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+    }
+    .info-box {
+        flex: 1;
+        min-width: 0;
+    }
+    .info-name { font-size: 17px; font-weight: bold; color: #111827; margin-bottom: 2px; }
+    .info-sub { font-size: 12px; color: #4B5563; margin-bottom: 6px; line-height: 1.4; }
+    
+    /* 실제 번호와 주소가 완전히 노출되는 콤팩트 버튼 */
+    .btn-link {
+        display: block;
+        text-decoration: none !important;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 8px;
+        border-radius: 6px;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: center;
+    }
+    .btn-phone { background-color: #E0F2FE; color: #0369A1 !important; }
+    .btn-company { background-color: #F3F4F6; color: #4B5563 !important; }
+    .btn-email { background-color: #DCFCE7; color: #15803D !important; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("📱 웅수회 모바일 회원수첩")
 
-# 이름 검색창 (스마트폰 크기에 최적화)
+# 이름 검색창 (Streamlit 내장 컬럼 기능을 최소화하여 검색창 위치만 정렬)
 left_space, search_col, right_space = st.columns([1, 4, 1])
 with search_col:
     search_query = st.text_input("🔍 이름으로 찾기", "", placeholder="회원 이름을 입력하세요...")
@@ -57,11 +105,10 @@ else:
 GITHUB_PHOTO_BASE_URL = "https://raw.githubusercontent.com/jeawon83-stack/woongsu/main/photos/"
 DEFAULT_IMAGE_URL = f"{GITHUB_PHOTO_BASE_URL}00.jpg"
 
-# ─── 4. 회원 목록 출력 (안전한 좌/우 분할 Grid 방식) ───
-# PC/태블릿에서는 3열 분할, 스마트폰 세로 모드에서는 자동으로 1열 배치가 됩니다.
-grid_cols = st.columns(3)
+# ─── 4. 회원 목록 생성 및 출력 ───
+# 전체 회원을 하나의 그리드 컨테이너 안에 순서대로 쏟아부어 모바일 누락을 완벽히 해결합니다.
+cards_html = '<div class="member-grid">'
 
-col_idx = 0
 for index, row in display_df.iterrows():
     if pd.isna(row[idx_A]):
         continue
@@ -71,50 +118,49 @@ for index, row in display_df.iterrows():
     except:
         continue
 
-    # 데이터 추출 및 공백 제거
+    # 데이터 문자열 정리
     name = str(row[idx_D]).strip()
     hakbun = str(row[idx_B]).strip()
     sosok = str(row[idx_E]).strip()
     jikpup = str(row[idx_F]).strip()
+    
     phone = str(row[idx_G]).strip() if pd.notna(row[idx_G]) else ""
     company_phone = str(row[idx_H]).strip() if pd.notna(row[idx_H]) else ""
     email = str(row[idx_I]).strip() if pd.notna(row[idx_I]) else ""
 
-    # 3개의 대열에 차례대로 카드를 분배 (모바일에서는 누락 없이 1줄로 순서대로 정렬됩니다)
-    target_col = grid_cols[col_idx % 3]
-    
-    with target_col:
-        # 카드 프레임 시작
-        st.markdown('<div class="css-card">', unsafe_allow_html=True)
-        
-        # 💡 [핵심 구현] 내부를 좌측(사진 3.5 비율) : 우측(정보 6.5 비율)로 고정 분할
-        card_left, card_right = st.columns([35, 65])
-        
-        with card_left:
-            # 대소문자 확장자 에러를 방지하는 HTML 이미지 삽입
-            img_html = f"""
+    # 버튼 구성 (실제 주소 및 번호 노출)
+    buttons_html = ""
+    if phone and phone != "nan" and phone != "":
+        buttons_html += f'<a href="tel:{phone}" class="btn-link btn-phone">📞 휴대폰: {phone}</a>'
+    if company_phone and company_phone != "nan" and company_phone != "":
+        buttons_html += f'<a href="tel:{company_phone}" class="btn-link btn-company">☎️ 회사: {company_phone}</a>'
+    if email and email != "nan" and email != "":
+        buttons_html += f'<a href="mailto:{email}" class="btn-link btn-email">✉️ {email}</a>'
+
+    # 하나의 텍스트 안에서 좌측 사진 박스와 우측 정보 박스를 CSS로 완전 통제
+    cards_html += f"""
+    <div class="member-card">
+        <div class="photo-box">
             <img src="{GITHUB_PHOTO_BASE_URL}{num_A}.jpg" 
                  onerror="this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{num_A}.JPG'; 
                           this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{num_A}.png'; 
                           this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{num_A}.jpeg'; 
-                          this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" 
-                 style="width:100%; height:120px; object-fit:cover; border-radius:8px; border:1px solid #E5E7EB;" />
-            """
-            st.markdown(img_html, unsafe_allow_html=True)
-            
-        with card_right:
-            # 우측 정보 영역 출력
-            st.markdown(f"**<span style='font-size:16px;'>{name}</span>** <span style='color:#6B7280; font-size:12px;'>({hakbun})</span>", unsafe_allow_html=True)
-            st.markdown(f"<span style='font-size:12px; color:#4B5563; line-height:1.3;'><b>소속</b>: {sosok}<br><b>직급</b>: {jikpup}</span>", unsafe_allow_html=True)
-            
-            # 실제 번호 링크 버튼 구성 (터치 시 바로 연결)
-            if phone and phone != "nan" and phone != "":
-                st.markdown(f'<a href="tel:{phone}" style="display:block; text-decoration:none; font-size:11px; font-weight:600; padding:4px 5px; background-color:#E0F2FE; color:#0369A1; border-radius:4px; margin-top:3px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">📞 {phone}</a>', unsafe_allow_html=True)
-            if company_phone and company_phone != "nan" and company_phone != "":
-                st.markdown(f'<a href="tel:{company_phone}" style="display:block; text-decoration:none; font-size:11px; font-weight:600; padding:4px 5px; background-color:#F3F4F6; color:#4B5563; border-radius:4px; margin-top:3px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">☎️ {company_phone}</a>', unsafe_allow_html=True)
-            if email and email != "nan" and email != "":
-                st.markdown(f'<a href="mailto:{email}" style="display:block; text-decoration:none; font-size:11px; font-weight:600; padding:4px 5px; background-color:#DCFCE7; color:#15803D; border-radius:4px; margin-top:3px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">✉️ {email}</a>', unsafe_allow_html=True)
-                
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-    col_idx += 1
+                          this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
+        </div>
+        <div class="info-box">
+            <div class="info-name">{name} <span style="font-size:13px; color:#6B7280; font-weight:normal;">({hakbun})</span></div>
+            <div class="info-sub">
+                <b>소속</b> : {sosok}<br>
+                <b>직급</b> : {jikpup}
+            </div>
+            <div>
+                {buttons_html}
+            </div>
+        </div>
+    </div>
+    """
+
+cards_html += '</div>'
+
+# ⚠️ Streamlit의 간섭을 완전히 차단하고 준비된 반응형 카드를 한 번에 화면에 인쇄합니다.
+st.markdown(cards_html, unsafe_allow_html=True)
