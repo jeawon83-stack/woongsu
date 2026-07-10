@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 
 # ─── 1. 구글 시트 데이터 로드 ───
-# ⚠️ 본인의 구글 시트 웹 게시(CSV) 주소를 여기에 넣어주세요!
+# 제공해주신 '웹에 게시(CSV)' 주소를 적용했습니다.
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
     df = pd.read_csv(SHEET_URL)
     
+    # 구글 시트 열 인덱스 매핑 (A=0, B=1, C=2, D=3...)
     idx_A = df.columns[0] # 번호 (A)
     idx_B = df.columns[1] # 학번 (B)
     idx_D = df.columns[3] # 이름 (D)
@@ -155,5 +156,5 @@ for index, row in display_df.iterrows():
 
 cards_html += '</div>'
 
-# ⚠️ [핵심 수정] 반복문이 완전히 끝난 후 단 한 번만 HTML을 렌더링하도록 변경합니다.
+# 최종 화면 렌더링
 st.markdown(cards_html, unsafe_allow_html=True)
