@@ -5,7 +5,7 @@ import pandas as pd
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
-    # 데이터 파괴를 방지하기 위해 모든 셀 데이터를 문자열 취급하고 줄바꿈 기호를 사전에 박멸합니다.
+    # 모든 셀 데이터를 문자열 취급하고 줄바꿈 기호를 안전하게 사전 박멸합니다.
     df = pd.read_csv(SHEET_URL, dtype=str).fillna("")
     for col in df.columns:
         df[col] = df[col].astype(str).str.replace(r'\r+|\n+', ' ', regex=True).str.strip()
@@ -31,7 +31,7 @@ st.markdown("""
     .main .block-container { max-width: 1200px; padding-top: 20px; }
     h1 { text-align: center; color: #1E3A8A; font-size: 26px !important; font-weight: bold; margin-bottom: 25px; }
     
-    /* 💡 [조건 1] HTML 없이 모든 테두리 카드의 세로 높이를 강제로 완전 일치 고정 */
+    /* 모든 테두리 카드의 세로 높이를 강제로 완전 일치 고정 */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1px solid #E5E7EB !important;
         border-radius: 12px !important;
@@ -42,7 +42,7 @@ st.markdown("""
         box-sizing: border-box !important;
     }
     
-    /* 컴포넌트 간 불필요한 공백 제거 */
+    /* 컴포넌트 간 불필요한 여백 최소화 */
     div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.3; }
     div[data-testid="stHorizontalBlock"] { gap: 6px !important; }
     
@@ -78,10 +78,9 @@ for index, row in display_df.iterrows():
         continue
     valid_members.append(row)
 
-# ─── 4. [완벽 반응형] 1줄 ~ 3줄 크기 가변 제어 로직 ───
-# st.columns([1,1,1]) 구조는 컴퓨터 화면용이며, 
-# 스마트폰 세로 모드 진입 시 브라우저 너비를 감지해 우측 열들이 알아서 아래 줄로 흘러내려가므로 
-# 스마트폰에서는 순서대로 완벽한 1줄 정렬이 되고, PC에서는 3줄 다단 정렬이 완벽하게 이루어집니다!
+# ─── 4. [반응형 레이아웃] 1줄 ~ 3줄 자동 가변 처리 ───
+# PC에선 3단 분할로 작동하며, 스마트폰에선 가로폭 감지로 우측 열들이 아래로 흘러내려 
+# 모바일에선 누락 없는 1줄, 넓은 화면에선 3줄 배치가 자연스럽게 연동됩니다.
 grid_cols = st.columns(3)
 
 for col_idx, row in enumerate(valid_members):
@@ -98,7 +97,7 @@ for col_idx, row in enumerate(valid_members):
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 사진 확장자 추적 매핑
+    # 사진 확장자 추적 매핑 및 주소 할당
     available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
     if num_A in available_photos:
         if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
@@ -108,43 +107,43 @@ for col_idx, row in enumerate(valid_members):
     else:
         member_photo_url = DEFAULT_IMAGE_URL
 
-    # 반응형 가변 열 배정
+    # 반응형 열 계산
     target_col = grid_cols[col_idx % 3]
     
     with target_col:
-        # 순수 파이썬 독립 컨테이너 개시 (HTML 파괴 원천 불가)
+        # 순수 파이썬 컨테이너 카드 개시 (HTML 충돌 100% 없음)
         with st.container(border=True):
             # 대레이아웃 분할: 왼쪽 사진(35) : 오른쪽 정보(65) 강제 가로 고정
             card_left, card_right = st.columns([35, 65])
             
             with card_left:
-                # 00번 사진 비율에 맞춰 모든 이미지를 균일화하여 출력하는 내장 컴포넌트
-                st.image(member_photo_url, use_container_width=True, fallback=DEFAULT_IMAGE_URL)
+                # 💡 [오류 수정 완료] 버전을 타는 fallback 옵션을 완벽히 제거했습니다.
+                st.image(member_photo_url, use_container_width=True)
                 
             with card_right:
-                # 이름 및 학번
+                # 이름 및 학번 기입
                 st.markdown(f"**<span style='font-size:16px;'>{name}</span>** <span style='color:#6B7280; font-size:12px;'>({hakbun})</span>", unsafe_allow_html=True)
                 
-                # 💡 [요청조건 1] 소속과 직급을 한 줄에 가로로 이쁘게 표현
+                # 소속과 직급을 한 줄로 가로 정렬 표현
                 st.markdown(f"<span style='font-size:11px; color:#4B5563;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
-                st.write("") # 버튼 분리를 위한 미세 간격
+                st.write("") 
                 
-                # 💡 [요청조건 2] 휴대폰과 회사 번호 버튼을 한 줄에 좌우로 나란히 배치
+                # 휴대폰과 회사 번호를 한 줄에 좌우로 나란히 배치
                 tel_col1, tel_col2 = st.columns(2)
                 with tel_col1:
                     if phone and phone != "nan" and phone != "":
                         st.link_button(f"📞 {phone}", f"tel:{phone}", use_container_width=True)
                     else:
-                        st.write("") # 칸 균형 유지를 위한 빈 구역 확보
+                        st.write("") 
                 with tel_col2:
                     if company_phone and company_phone != "nan" and company_phone != "":
                         st.link_button(f"☎️ {company_phone}", f"tel:{company_phone}", use_container_width=True)
                     else:
                         st.write("")
                 
-                # 💡 [요청조건 3] 그 바로 밑에 이메일 주소를 단독 가로로 배치
+                # 그 밑에 이메일 주소를 단독 가로 배치
                 if email and email != "nan" and email != "":
                     st.link_button(f"✉️ {email}", f"mailto:{email}", use_container_width=True)
         
-        # 하단 카드 정돈용 간격 형성
+        # 하단 여백 형성
         st.write("")
