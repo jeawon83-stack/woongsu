@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 
 # ─── 1. 구글 시트 데이터 로드 ───
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
@@ -56,7 +57,7 @@ st.markdown("""
     div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.4; }
     div[data-testid="stHorizontalBlock"] { gap: 10px !important; align-items: flex-start !important; }
     
-    /* 링크 버튼 스타일 최적화 (텍스트 가독성 중심) */
+    /* 링크 버튼 스타일 최적화 */
     div[data-testid="stLinkButton"] a {
         font-size: 11.5px !important;
         font-weight: bold !important;
@@ -92,14 +93,13 @@ for index, row in display_df.iterrows():
         continue
     valid_members.append(row)
 
-# ─── 4. 회원 목록 순차 출력 (무조건 깔끔한 1열 고정) ───
+# ─── 4. 회원 목록 순차 출력 (순수 파이썬 1열 고정 구조) ───
 for row in valid_members:
     val_A = str(row[idx_A]).strip()
     
-    # 구글 시트의 숫자가 1.0 같은 소수로 오거나 공백이 섞인 것을 순수 정수 문자로 정형화
     try:
         clean_num = str(int(float(val_A)))
-        padded_num = clean_num.zfill(2) # 1자리 숫자인 경우 '01' 형태도 준비
+        padded_num = clean_num.zfill(2)
     except:
         clean_num = "00"
         padded_num = "00"
@@ -112,25 +112,28 @@ for row in valid_members:
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 💡 [핵심 버그 수정] 어떤 확장자나 자릿수로 저장했든 브라우저가 다 찾아내도록 onerror 연쇄 추적 기법 적용
-    # '숫자.jpg' -> '숫자.JPG' -> '숫자.png' -> '숫자.jpeg' -> '0숫자.jpg'(자릿수 맞춤) -> 기본곰돌이 순으로 자동 스캔합니다.
-    img_html = f"""
-    <img src="{GITHUB_PHOTO_BASE_URL}{clean_num}.jpg" 
-         onerror="this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{clean_num}.JPG'; 
-                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{clean_num}.png'; 
-                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{clean_num}.jpeg'; 
-                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{padded_num}.jpg'; 
-                  this.onerror=null; this.src='{GITHUB_PHOTO_BASE_URL}{padded_num}.JPG'; 
-                  this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
-    """
+    # 💡 [무적 자동 탐색 로직] 깃허브 실제 경로를 파이썬 백엔드에서 다이렉트로 체크하여 유효한 경로만 최종 매핑합니다.
+    extensions = [f"{clean_num}.jpg", f"{clean_num}.JPG", f"{clean_num}.png", f"{clean_num}.jpeg", f"{padded_num}.jpg", f"{padded_num}.JPG"]
+    member_photo_url = DEFAULT_IMAGE_URL # 기본값을 곰돌이로 세팅
+    
+    for ext in extensions:
+        test_url = f"{GITHUB_PHOTO_BASE_URL}{ext}"
+        try:
+            # 깃허브에서 200 OK 사인을 보내면 해당 확장자 주소로 확정 후 중단
+            response = requests.head(test_url, timeout=1.5)
+            if response.status_code == 200:
+                member_photo_url = test_url
+                break
+        except:
+            pass
 
     with st.container(border=True):
         # 가로 배치: 왼쪽 사진(33) : 오른쪽 정보(67)
         card_left, card_right = st.columns([33, 67])
         
         with card_left:
-            # 순수 파이썬 image 컴포넌트의 HTML 우회 표기를 통해 에러 복구 스크립트 발동
-            st.markdown(f'<div data-testid="stImage">{img_html}</div>', unsafe_allow_html=True)
+            # 완벽하게 검증된 주소만 순수 파이썬 이미지 컴포넌트에 안전 인쇄
+            st.image(member_photo_url, use_container_width=True)
             
         with card_right:
             # 1줄: 이름 및 학번
