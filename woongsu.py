@@ -4,7 +4,7 @@ import requests
 
 # ─── 1. 구글 시트 데이터 로드 ───
 # 방법 1 또는 방법 2로 얻은 주소를 여기에 넣으세요!
-SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pubhtml"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
     df = pd.read_csv(SHEET_URL)
