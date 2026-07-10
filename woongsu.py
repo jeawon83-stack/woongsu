@@ -2,13 +2,11 @@ import streamlit as st
 import pandas as pd
 
 # ─── 1. 구글 시트 데이터 로드 ───
-# 제공해주신 '웹에 게시(CSV)' 주소를 적용했습니다.
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
 
 try:
     df = pd.read_csv(SHEET_URL)
     
-    # 구글 시트 열 인덱스 매핑 (A=0, B=1, C=2, D=3...)
     idx_A = df.columns[0] # 번호 (A)
     idx_B = df.columns[1] # 학번 (B)
     idx_D = df.columns[3] # 이름 (D)
@@ -30,59 +28,6 @@ st.markdown("""
     .main .block-container { max-width: 1200px; padding-top: 20px; }
     .title-area { text-align: center; margin-bottom: 25px; }
     .title-text { font-size: 26px; font-weight: bold; color: #1E3A8A; }
-    
-    /* 반응형 그리드 컨테이너 */
-    .member-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 16px;
-        width: 100%;
-    }
-    
-    /* 개별 회원 카드 스타일 */
-    .member-card {
-        display: flex;
-        align-items: center;
-        background-color: #ffffff;
-        border: 1px solid #E5E7EB;
-        border-radius: 12px;
-        padding: 12px;
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
-        height: 150px;
-    }
-    .photo-box {
-        flex: 0 0 85px;
-        margin-right: 12px;
-    }
-    .photo-box img {
-        width: 85px;
-        height: 115px;
-        object-fit: cover;
-        border-radius: 8px;
-        border: 1px solid #E5E7EB;
-    }
-    .info-box {
-        flex: 1;
-        min-width: 0;
-    }
-    .info-name { font-size: 17px; font-weight: bold; color: #111827; margin-bottom: 2px; }
-    .info-sub { font-size: 12px; color: #4B5563; margin-bottom: 6px; line-height: 1.4; }
-    
-    /* 버튼 스타일 */
-    .btn-link {
-        display: inline-flex;
-        align-items: center;
-        text-decoration: none !important;
-        font-size: 11px;
-        font-weight: 600;
-        padding: 4px 8px;
-        border-radius: 6px;
-        margin-right: 4px;
-        margin-bottom: 4px;
-    }
-    .btn-phone { background-color: #E0F2FE; color: #0369A1 !important; }
-    .btn-company { background-color: #F3F4F6; color: #4B5563 !important; }
-    .btn-email { background-color: #DCFCE7; color: #15803D !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -104,35 +49,69 @@ else:
 GITHUB_PHOTO_BASE_URL = "https://raw.githubusercontent.com/jeawon83-stack/woongsu/main/photos/"
 DEFAULT_IMAGE_URL = f"{GITHUB_PHOTO_BASE_URL}00.jpg"
 
-# ─── 4. 회원 목록 생성 및 출력 ───
-cards_html = '<div class="member-grid">'
+# 공통 스타일 정의 (각 독립된 컴포넌트에 주입할 CSS)
+card_style = """
+<style>
+body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: transparent; }
+.member-card {
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+    height: 140px;
+}
+.photo-box { flex: 0 0 85px; margin-right: 12px; }
+.photo-box img { width: 85px; height: 115px; object-fit: cover; border-radius: 8px; border: 1px solid #E5E7EB; }
+.info-box { flex: 1; min-width: 0; }
+.info-name { font-size: 17px; font-weight: bold; color: #111827; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.info-sub { font-size: 12px; color: #4B5563; margin-bottom: 6px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.btn-link { display: inline-flex; align-items: center; text-decoration: none !important; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; margin-right: 4px; margin-bottom: 4px; }
+.btn-phone { background-color: #E0F2FE; color: #0369A1 !important; }
+.btn-company { background-color: #F3F4F6; color: #4B5563 !important; }
+.btn-email { background-color: #DCFCE7; color: #15803D !important; }
+</style>
+"""
 
+# ─── 4. 회원 목록 출력 (Streamlit 반응형 내장 레이아웃 적용) ───
+# Streamlit 자체 컬럼 기능을 반응형 격자로 활용하여 HTML 충돌을 원천 차단합니다.
+grid_cols = st.columns(3) # 기본적으로 3열 구조 준비 (태블릿/PC 대응)
+
+col_idx = 0
 for index, row in display_df.iterrows():
     if pd.isna(row[idx_A]):
         continue
         
     try:
-        # 소수점 제거 후 문자열로 안전하게 변환
         num_A = str(int(float(row[idx_A])))
     except:
         continue
 
-    # 전화번호 및 이메일 문자열 처리 (공백 및 nan 제거)
+    # 데이터 정리 및 텍스트 안전화 (HTML 특수문자 깨짐 방지)
+    name = str(row[idx_D]).replace("'", "\\'").replace('"', '\\"')
+    hakbun = str(row[idx_B]).replace("'", "\\'").replace('"', '\\"')
+    sosok = str(row[idx_E]).replace("'", "\\'").replace('"', '\\"')
+    jikpup = str(row[idx_F]).replace("'", "\\'").replace('"', '\\"')
+    
     phone = str(row[idx_G]).strip() if pd.notna(row[idx_G]) else ""
     company_phone = str(row[idx_H]).strip() if pd.notna(row[idx_H]) else ""
     email = str(row[idx_I]).strip() if pd.notna(row[idx_I]) else ""
 
-    # 버튼 생성
+    # 버튼 구성
     buttons_html = ""
     if phone and phone != "nan" and phone != "":
-        buttons_html += f'<a href="tel:{phone}" class="btn-link btn-phone">휴대폰</a>'
+        buttons_html += f'<a href="tel:{phone}" target="_parent" class="btn-link btn-phone">휴대폰</a>'
     if company_phone and company_phone != "nan" and company_phone != "":
-        buttons_html += f'<a href="tel:{company_phone}" class="btn-link btn-company">회사</a>'
+        buttons_html += f'<a href="tel:{company_phone}" target="_parent" class="btn-link btn-company">회사</a>'
     if email and email != "nan" and email != "":
-        buttons_html += f'<a href="mailto:{email}" class="btn-link btn-email">이메일</a>'
+        buttons_html += f'<a href="mailto:{email}" target="_parent" class="btn-link btn-email">이메일</a>'
 
-    # 카드 구조 누적
-    cards_html += f"""
+    # 개별 카드를 위한 완전히 독립된 안전한 HTML 블록 구조 생성
+    single_card_html = f"""
+    {card_style}
     <div class="member-card">
         <div class="photo-box">
             <img src="{GITHUB_PHOTO_BASE_URL}{num_A}.jpg" 
@@ -142,10 +121,10 @@ for index, row in display_df.iterrows():
                           this.onerror=null; this.src='{DEFAULT_IMAGE_URL}';" />
         </div>
         <div class="info-box">
-            <div class="info-name">{row[idx_D]} <span style="font-size:13px; color:#6B7280; font-weight:normal;">({row[idx_B]})</span></div>
+            <div class="info-name">{name} <span style="font-size:13px; color:#6B7280; font-weight:normal;">({hakbun})</span></div>
             <div class="info-sub">
-                <b>소속</b> : {row[idx_E]}<br>
-                <b>직급</b> : {row[idx_F]}
+                <b>소속</b> : {sosok}<br>
+                <b>직급</b> : {jikpup}
             </div>
             <div style="margin-top: 2px;">
                 {buttons_html}
@@ -154,7 +133,9 @@ for index, row in display_df.iterrows():
     </div>
     """
 
-cards_html += '</div>'
-
-# 최종 화면 렌더링
-st.markdown(cards_html, unsafe_allow_html=True)
+    # ⚠️ 컬럼을 순서대로 돌아가며 안전하게 독립 배정하여 화면 렌더링을 진행합니다.
+    target_col = grid_cols[col_idx % 3]
+    with target_col:
+        st.components.v1.html(single_card_html, height=150, scrolling=False)
+        
+    col_idx += 1
