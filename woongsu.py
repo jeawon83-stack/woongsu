@@ -39,15 +39,17 @@ st.markdown("""
     }
 
     /* 회원 카드들을 감싸는 최상위 블록만 그리드로 전환
-       (:has 선택자로 "카드가 직계 자식인 블록"만 정확히 타겟팅 → 카드 내부 레이아웃엔 영향 없음) */
+       (:has 선택자로 "카드가 직계 자식인 블록"만 정확히 타겟팅 → 카드 내부 레이아웃엔 영향 없음)
+       ※ Streamlit이 이 블록에 style="display:flex;flex-direction:column;..." 인라인 스타일을
+         직접 심어서 렌더링하므로, !important 없이는 grid가 절대 적용되지 않는다. */
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="stVerticalBlockBorderWrapper"]) {
-        display: grid;
-        grid-template-columns: 1fr;   /* 모바일/좁은 화면: 1열 */
-        gap: 14px;
+        display: grid !important;
+        grid-template-columns: 1fr !important;   /* 모바일/좁은 화면: 1열 */
+        gap: 14px !important;
     }
     @media (min-width: 900px) {
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="stVerticalBlockBorderWrapper"]) {
-            grid-template-columns: repeat(2, 1fr);  /* PC/넓은 화면: 2열 */
+            grid-template-columns: repeat(3, 1fr) !important;  /* PC/넓은 화면: 3열 */
         }
     }
 
