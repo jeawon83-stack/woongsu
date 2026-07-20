@@ -47,7 +47,7 @@ st.markdown("""
     }
     @media (min-width: 900px) {
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="stVerticalBlockBorderWrapper"]) {
-            grid-template-columns: repeat(3, 1fr);  /* PC/넓은 화면: 3열 */
+            grid-template-columns: repeat(2, 1fr);  /* PC/넓은 화면: 2열 */
         }
     }
 
