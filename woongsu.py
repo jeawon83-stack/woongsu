@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import requests
 
 # ─── 1. 구글 시트 데이터 로드 ───
 SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDxJ4wueTgRCsj36rDDw85VryB9To0yJ3gVQEcgrCqBE5uw89hboJdWJstpn3NuaLqT8ubarHcAumz/pub?output=csv"
@@ -32,7 +31,7 @@ st.markdown("""
     h1 { text-align: center; color: #1E3A8A; font-size: 25px !important; font-weight: bold; margin-bottom: 5px; }
     .edit-btn-container { text-align: center; margin-bottom: 20px; }
     
-    /* 모든 회원 카드의 프레임 크기를 동일하게 고정 */
+    /* 모든 회원 카드의 프레임 크기를 동일하게 고정 (내용물에 따라 일그러지지 않음) */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         border: 1px solid #E5E7EB !important;
         border-radius: 14px !important;
@@ -44,7 +43,7 @@ st.markdown("""
         margin-bottom: 5px !important;
     }
     
-    /* 모든 사진을 명함 규격 크기로 강제 고정 및 자동 크롭 */
+    /* 모든 사진을 00번 규격과 완벽히 동일한 명함 크기로 강제 고정 및 자동 크롭 */
     div[data-testid="stImage"] img {
         width: 95px !important;
         height: 130px !important;
@@ -57,7 +56,7 @@ st.markdown("""
     div[data-testid="stMarkdownContainer"] p { margin-bottom: 0px; line-height: 1.4; }
     div[data-testid="stHorizontalBlock"] { gap: 10px !important; align-items: flex-start !important; }
     
-    /* 링크 버튼 스타일 최적화 */
+    /* 링크 버튼 스타일 최적화 (텍스트 가독성 중심) */
     div[data-testid="stLinkButton"] a {
         font-size: 11.5px !important;
         font-weight: bold !important;
@@ -93,16 +92,12 @@ for index, row in display_df.iterrows():
         continue
     valid_members.append(row)
 
-# ─── 4. 회원 목록 순차 출력 (순수 파이썬 1열 고정 구조) ───
+# ─── 4. 회원 목록 순차 출력 (무조건 깔끔한 1열 고정) ───
 for row in valid_members:
-    val_A = str(row[idx_A]).strip()
-    
     try:
-        clean_num = str(int(float(val_A)))
-        padded_num = clean_num.zfill(2)
+        num_A = str(int(float(row[idx_A])))
     except:
-        clean_num = "00"
-        padded_num = "00"
+        num_A = "00"
 
     name = str(row[idx_D]).strip()
     hakbun = str(row[idx_B]).strip()
@@ -112,36 +107,30 @@ for row in valid_members:
     company_phone = str(row[idx_H]).strip()
     email = str(row[idx_I]).strip()
 
-    # 💡 [무적 자동 탐색 로직] 깃허브 실제 경로를 파이썬 백엔드에서 다이렉트로 체크하여 유효한 경로만 최종 매핑합니다.
-    extensions = [f"{clean_num}.jpg", f"{clean_num}.JPG", f"{clean_num}.png", f"{clean_num}.jpeg", f"{padded_num}.jpg", f"{padded_num}.JPG"]
-    member_photo_url = DEFAULT_IMAGE_URL # 기본값을 곰돌이로 세팅
-    
-    for ext in extensions:
-        test_url = f"{GITHUB_PHOTO_BASE_URL}{ext}"
-        try:
-            # 깃허브에서 200 OK 사인을 보내면 해당 확장자 주소로 확정 후 중단
-            response = requests.head(test_url, timeout=1.5)
-            if response.status_code == 200:
-                member_photo_url = test_url
-                break
-        except:
-            pass
+    # 사진 매칭 확장자 체크 예외처리
+    available_photos = ["00", "100", "105", "106", "107", "108", "11", "112", "17", "21", "24", "36", "47", "54"]
+    if num_A in available_photos:
+        if num_A in ["108", "11"]: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.JPG"
+        elif num_A == "21": member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.png"
+        elif num_A == "24": member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpeg"
+        else: member_photo_url = f"{GITHUB_PHOTO_BASE_URL}{num_A}.jpg"
+    else:
+        member_photo_url = DEFAULT_IMAGE_URL
 
     with st.container(border=True):
         # 가로 배치: 왼쪽 사진(33) : 오른쪽 정보(67)
         card_left, card_right = st.columns([33, 67])
         
         with card_left:
-            # 완벽하게 검증된 주소만 순수 파이썬 이미지 컴포넌트에 안전 인쇄
             st.image(member_photo_url, use_container_width=True)
             
         with card_right:
-            # 1줄: 이름 및 학번
+            # 1줄: 이름 및 학번 (글씨 크기 확대)
             st.markdown(f"**<span style='font-size:19px; color:#111827;'>{name}</span>** <span style='color:#6B7280; font-size:13px;'>({hakbun})</span>", unsafe_allow_html=True)
             
-            # 2줄: 소속 및 직책 가로 한 줄 정렬
+            # 2줄: 소속 및 직책 가로 한 줄 정렬 (글씨 크기 확대)
             st.markdown(f"<span style='font-size:14px; color:#4B5563; font-weight:500;'>🏢 {sosok} · {jikpup}</span>", unsafe_allow_html=True)
-            st.write("") 
+            st.write("") # 미세 세로 간격 조정
             
             # 3줄: 휴대폰과 회사 번호 동일 높이에 배치
             tel_col1, tel_col2 = st.columns(2)
