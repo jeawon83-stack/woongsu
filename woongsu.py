@@ -20,6 +20,11 @@ try:
     idx_H = df.columns[7] # 전화번호(회사) (H)
     idx_I = df.columns[8] # 이메일 (I)
 
+    # M열에 '숨김'이 적힌 회원은 주소록에서 제외
+    if len(df.columns) > 12:
+        idx_M = df.columns[12] # 비고/숨김 (M)
+        df = df[~df[idx_M].str.contains("숨김", na=False)]
+
 except Exception as e:
     st.error("구글 시트를 불러오는 중 오류가 발생했습니다. URL을 확인해주세요.")
     st.stop()
